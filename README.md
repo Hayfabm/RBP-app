@@ -1,2 +1,2 @@
-# RBP-app-
+# RBP-app
 RNA-binding Proteins app
