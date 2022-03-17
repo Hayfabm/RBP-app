@@ -1,0 +1,400 @@
+#!/usr/bin/miniconda3/bin/ python
+
+import re
+import math
+
+# feature engineering: composition(C), transition(T), distribution(D), conjoint_triad(CT)
+
+# composition
+
+
+def Count(seq1, seq2):
+    sum = 0
+    for aa in seq1:
+        sum = sum + seq2.count(aa)
+    return sum
+
+
+def CTDC(seq, **kw):
+    group1 = {
+        "hydrophobicity_PRAM900101": "RKEDQN",
+        "hydrophobicity_ARGP820101": "QSTNGDE",
+        "hydrophobicity_ZIMJ680101": "QNGSWTDERA",
+        "hydrophobicity_PONP930101": "KPDESNQT",
+        "hydrophobicity_CASG920101": "KDEQPSRNTG",
+        "hydrophobicity_ENGD860101": "RDKENQHYP",
+        "hydrophobicity_FASG890101": "KERSQD",
+        "normwaalsvolume": "GASTPDC",
+        "polarity": "LIFWCMVY",
+        "polarizability": "GASDT",
+        "charge": "KR",
+        "secondarystruct": "EALMQKRH",
+        "solventaccess": "ALFCGIVW",
+    }
+    group2 = {
+        "hydrophobicity_PRAM900101": "GASTPHY",
+        "hydrophobicity_ARGP820101": "RAHCKMV",
+        "hydrophobicity_ZIMJ680101": "HMCKV",
+        "hydrophobicity_PONP930101": "GRHA",
+        "hydrophobicity_CASG920101": "AHYMLV",
+        "hydrophobicity_ENGD860101": "SGTAW",
+        "hydrophobicity_FASG890101": "NTPG",
+        "normwaalsvolume": "NVEQIL",
+        "polarity": "PATGS",
+        "polarizability": "CPNVEQIL",
+        "charge": "ANCQGHILMFPSTWYV",
+        "secondarystruct": "VIYCWFT",
+        "solventaccess": "RKQEND",
+    }
+    group3 = {
+        "hydrophobicity_PRAM900101": "CLVIMFW",
+        "hydrophobicity_ARGP820101": "LYPFIW",
+        "hydrophobicity_ZIMJ680101": "LPFYI",
+        "hydrophobicity_PONP930101": "YMFWLCVI",
+        "hydrophobicity_CASG920101": "FIWC",
+        "hydrophobicity_ENGD860101": "CVLIMF",
+        "hydrophobicity_FASG890101": "AYHWVMFLIC",
+        "normwaalsvolume": "MHKFRYW",
+        "polarity": "HQRKNED",
+        "polarizability": "KMHFRYW",
+        "charge": "DE",
+        "secondarystruct": "GNPSD",
+        "solventaccess": "MSPTHY",
+    }
+
+    groups = [group1, group2, group3]
+    property = (
+        "hydrophobicity_PRAM900101",
+        "hydrophobicity_ARGP820101",
+        "hydrophobicity_ZIMJ680101",
+        "hydrophobicity_PONP930101",
+        "hydrophobicity_CASG920101",
+        "hydrophobicity_ENGD860101",
+        "hydrophobicity_FASG890101",
+        "normwaalsvolume",
+        "polarity",
+        "polarizability",
+        "charge",
+        "secondarystruct",
+        "solventaccess",
+    )
+
+    encodings = []
+    header = ["#"]
+    for p in property:
+        for g in range(1, len(groups) + 1):
+            header.append(p + ".G" + str(g))
+    encodings.append(header)
+    for i in range(len(seq)):
+        sequence = seq[i]
+        code = []
+        for p in property:
+            c1 = Count(group1[p], sequence) / len(sequence)
+            c2 = Count(group2[p], sequence) / len(sequence)
+            c3 = 1 - c1 - c2
+            code = code + [c1, c2, c3]
+        encodings.append(code)
+    return encodings  # (x, 39)
+
+
+# transition
+
+
+def CTDT(seq, **kw):
+    group1 = {
+        "hydrophobicity_PRAM900101": "RKEDQN",
+        "hydrophobicity_ARGP820101": "QSTNGDE",
+        "hydrophobicity_ZIMJ680101": "QNGSWTDERA",
+        "hydrophobicity_PONP930101": "KPDESNQT",
+        "hydrophobicity_CASG920101": "KDEQPSRNTG",
+        "hydrophobicity_ENGD860101": "RDKENQHYP",
+        "hydrophobicity_FASG890101": "KERSQD",
+        "normwaalsvolume": "GASTPDC",
+        "polarity": "LIFWCMVY",
+        "polarizability": "GASDT",
+        "charge": "KR",
+        "secondarystruct": "EALMQKRH",
+        "solventaccess": "ALFCGIVW",
+    }
+    group2 = {
+        "hydrophobicity_PRAM900101": "GASTPHY",
+        "hydrophobicity_ARGP820101": "RAHCKMV",
+        "hydrophobicity_ZIMJ680101": "HMCKV",
+        "hydrophobicity_PONP930101": "GRHA",
+        "hydrophobicity_CASG920101": "AHYMLV",
+        "hydrophobicity_ENGD860101": "SGTAW",
+        "hydrophobicity_FASG890101": "NTPG",
+        "normwaalsvolume": "NVEQIL",
+        "polarity": "PATGS",
+        "polarizability": "CPNVEQIL",
+        "charge": "ANCQGHILMFPSTWYV",
+        "secondarystruct": "VIYCWFT",
+        "solventaccess": "RKQEND",
+    }
+    group3 = {
+        "hydrophobicity_PRAM900101": "CLVIMFW",
+        "hydrophobicity_ARGP820101": "LYPFIW",
+        "hydrophobicity_ZIMJ680101": "LPFYI",
+        "hydrophobicity_PONP930101": "YMFWLCVI",
+        "hydrophobicity_CASG920101": "FIWC",
+        "hydrophobicity_ENGD860101": "CVLIMF",
+        "hydrophobicity_FASG890101": "AYHWVMFLIC",
+        "normwaalsvolume": "MHKFRYW",
+        "polarity": "HQRKNED",
+        "polarizability": "KMHFRYW",
+        "charge": "DE",
+        "secondarystruct": "GNPSD",
+        "solventaccess": "MSPTHY",
+    }
+
+    groups = [group1, group2, group3]
+    property = (
+        "hydrophobicity_PRAM900101",
+        "hydrophobicity_ARGP820101",
+        "hydrophobicity_ZIMJ680101",
+        "hydrophobicity_PONP930101",
+        "hydrophobicity_CASG920101",
+        "hydrophobicity_ENGD860101",
+        "hydrophobicity_FASG890101",
+        "normwaalsvolume",
+        "polarity",
+        "polarizability",
+        "charge",
+        "secondarystruct",
+        "solventaccess",
+    )
+
+    encodings = []
+    header = ["#"]
+    for p in property:
+        for tr in ("Tr1221", "Tr1331", "Tr2332"):
+            header.append(p + "." + tr)
+    encodings.append(header)
+
+    for i in range(len(seq)):
+        sequence = seq[i]
+        code = []
+        aaPair = [sequence[j : j + 2] for j in range(len(sequence) - 1)]
+        for p in property:
+            c1221, c1331, c2332 = 0, 0, 0
+            for pair in aaPair:
+                if (pair[0] in group1[p] and pair[1] in group2[p]) or (
+                    pair[0] in group2[p] and pair[1] in group1[p]
+                ):
+                    c1221 = c1221 + 1
+                    continue
+                if (pair[0] in group1[p] and pair[1] in group3[p]) or (
+                    pair[0] in group3[p] and pair[1] in group1[p]
+                ):
+                    c1331 = c1331 + 1
+                    continue
+                if (pair[0] in group2[p] and pair[1] in group3[p]) or (
+                    pair[0] in group3[p] and pair[1] in group2[p]
+                ):
+                    c2332 = c2332 + 1
+            code = code + [
+                c1221 / len(aaPair),
+                c1331 / len(aaPair),
+                c2332 / len(aaPair),
+            ]
+        encodings.append(code)
+    return encodings  # (x, 39)
+
+
+# distribution
+
+
+def Count(aaSet, sequence):
+    number = 0
+    for aa in sequence:
+        if aa in aaSet:
+            number = number + 1
+    cutoffNums = [
+        1,
+        math.floor(0.25 * number),
+        math.floor(0.50 * number),
+        math.floor(0.75 * number),
+        number,
+    ]
+    cutoffNums = [i if i >= 1 else 1 for i in cutoffNums]
+
+    code = []
+    for cutoff in cutoffNums:
+        myCount = 0
+        for i in range(len(sequence)):
+            if sequence[i] in aaSet:
+                myCount += 1
+                if myCount == cutoff:
+                    code.append((i + 1) / len(sequence) * 100)
+                    break
+        if myCount == 0:
+            code.append(0)
+    return code
+
+
+def CTDD(seq, **kw):
+    group1 = {
+        "hydrophobicity_PRAM900101": "RKEDQN",
+        "hydrophobicity_ARGP820101": "QSTNGDE",
+        "hydrophobicity_ZIMJ680101": "QNGSWTDERA",
+        "hydrophobicity_PONP930101": "KPDESNQT",
+        "hydrophobicity_CASG920101": "KDEQPSRNTG",
+        "hydrophobicity_ENGD860101": "RDKENQHYP",
+        "hydrophobicity_FASG890101": "KERSQD",
+        "normwaalsvolume": "GASTPDC",
+        "polarity": "LIFWCMVY",
+        "polarizability": "GASDT",
+        "charge": "KR",
+        "secondarystruct": "EALMQKRH",
+        "solventaccess": "ALFCGIVW",
+    }
+    group2 = {
+        "hydrophobicity_PRAM900101": "GASTPHY",
+        "hydrophobicity_ARGP820101": "RAHCKMV",
+        "hydrophobicity_ZIMJ680101": "HMCKV",
+        "hydrophobicity_PONP930101": "GRHA",
+        "hydrophobicity_CASG920101": "AHYMLV",
+        "hydrophobicity_ENGD860101": "SGTAW",
+        "hydrophobicity_FASG890101": "NTPG",
+        "normwaalsvolume": "NVEQIL",
+        "polarity": "PATGS",
+        "polarizability": "CPNVEQIL",
+        "charge": "ANCQGHILMFPSTWYV",
+        "secondarystruct": "VIYCWFT",
+        "solventaccess": "RKQEND",
+    }
+    group3 = {
+        "hydrophobicity_PRAM900101": "CLVIMFW",
+        "hydrophobicity_ARGP820101": "LYPFIW",
+        "hydrophobicity_ZIMJ680101": "LPFYI",
+        "hydrophobicity_PONP930101": "YMFWLCVI",
+        "hydrophobicity_CASG920101": "FIWC",
+        "hydrophobicity_ENGD860101": "CVLIMF",
+        "hydrophobicity_FASG890101": "AYHWVMFLIC",
+        "normwaalsvolume": "MHKFRYW",
+        "polarity": "HQRKNED",
+        "polarizability": "KMHFRYW",
+        "charge": "DE",
+        "secondarystruct": "GNPSD",
+        "solventaccess": "MSPTHY",
+    }
+
+    groups = [group1, group2, group3]
+    property = (
+        "hydrophobicity_PRAM900101",
+        "hydrophobicity_ARGP820101",
+        "hydrophobicity_ZIMJ680101",
+        "hydrophobicity_PONP930101",
+        "hydrophobicity_CASG920101",
+        "hydrophobicity_ENGD860101",
+        "hydrophobicity_FASG890101",
+        "normwaalsvolume",
+        "polarity",
+        "polarizability",
+        "charge",
+        "secondarystruct",
+        "solventaccess",
+    )
+
+    encodings = []
+    header = ["#"]
+    for p in property:
+        for g in ("1", "2", "3"):
+            for d in ["0", "25", "50", "75", "100"]:
+                header.append(p + "." + g + ".residue" + d)
+    encodings.append(header)
+
+    for i in range(len(seq)):
+        sequence = seq[i]
+        code = []
+        for p in property:
+            code = (
+                code
+                + Count(group1[p], sequence)
+                + Count(group2[p], sequence)
+                + Count(group3[p], sequence)
+            )
+        encodings.append(code)
+
+    return encodings  # (x, 195)
+
+
+# Conjoint-triad
+
+AALetter = [
+    "A",
+    "R",
+    "N",
+    "D",
+    "C",
+    "E",
+    "Q",
+    "G",
+    "H",
+    "I",
+    "L",
+    "K",
+    "M",
+    "F",
+    "P",
+    "S",
+    "T",
+    "W",
+    "Y",
+    "V",
+]
+
+_repmat = {
+    1: ["A", "G", "V"],
+    2: ["I", "L", "F", "P"],
+    3: ["Y", "M", "T", "S"],
+    4: ["H", "N", "Q", "W"],
+    5: ["R", "K"],
+    6: ["D", "E"],
+    7: ["C"],
+}
+
+
+def _Str2Num(proteinsequence):
+    """
+    translate the amino acid letter into the corresponding class based on the
+    given form.
+    """
+    repmat = {}
+    for i in _repmat:
+        for j in _repmat[i]:
+            repmat[j] = i
+
+    res = proteinsequence
+    for i in repmat:
+        res = res.replace(i, str(repmat[i]))
+    return res
+
+
+def CalculateConjointTriad(proteinsequence):
+    """
+    Calculate the conjoint triad features from protein sequence.
+    Useage:
+    res = CalculateConjointTriad(protein)
+    Input: protein is a pure protein sequence.
+    Output is a dict form containing all 343 conjoint triad features.
+    """
+    res = {}
+    proteinnum = _Str2Num(proteinsequence)
+    for i in range(1, 8):
+        for j in range(1, 8):
+            for k in range(1, 8):
+                temp = str(i) + str(j) + str(k)
+                res[temp] = proteinnum.count(temp)
+    return res
+
+
+def CT_processing(sequences):
+    code = []
+    for i in sequences:
+        DPC = CalculateConjointTriad(i)
+        ct = list(DPC.values())
+        code.append(ct)
+
+    return code
+
