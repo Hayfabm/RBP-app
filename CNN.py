@@ -5,6 +5,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
+import datetime
 import neptune.new as neptune
 
 
@@ -60,6 +61,7 @@ if __name__ == "__main__":
                 stride=(1, 1),
                 padding=(0, 0),
             )
+
             self.fc1 = nn.Linear(64, num_classes)
 
         def forward(self, x):
@@ -74,10 +76,21 @@ if __name__ == "__main__":
     # Hyperparameters
     in_channel = 1
     num_classes = 2
-    learning_rate = 0.001
+    learning_rate = 0.0001
     batch_size = 64
     num_epochs = 10
 
+    params = {
+        "lr": 0.001,
+        "bs": 64,
+        "input_sz": 616,
+        "n_classes": 2,
+        "model_filename": "model",
+        "device": torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+    }
+    model_path = (
+        "logs/model_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".hdf5"
+    )
     # initialize network
     model = CNN().to(device)
     print(model)
@@ -125,6 +138,7 @@ if __name__ == "__main__":
     # Log batch loss & acc
     run["training/batch/loss"].log(train_epoch_loss)
     run["training/batch/acc"].log(train_epoch_acc)
+    run["config/hyperparameters"] = params
 
     # check accuracy on training & test to see how good our model
 
@@ -142,8 +156,22 @@ if __name__ == "__main__":
             loss = criterion(scores, y_test)
             _, predictions = scores.max(1)
             correct_test += (predictions == y_test).item()
+            test_epoch_acc = 100 * (correct_test / total)
+            """
+            precision = precision_score(predictions, y_test)
+            print("Precision: %f" % precision)
+            # recall: tp / (tp + fn)
+            recall = recall_score(predictions, y_test)
+            print("Recall: %f" % recall)
+            # f1: 2 tp / (2 tp + fp + fn)
+            f1 = f1_score(predictions, y_test)
+            print("F1 score: %f" % f1)
+            """
+
+        print("accuracy: {:.2f}".format(test_epoch_acc))
 
         print(
             f"Got {correct_test} / {total} with accuracy {float(correct_test)/float(total)*100:.2f}"
         )
+    torch.save(model, model_path)
     run.stop()
