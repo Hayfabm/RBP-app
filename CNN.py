@@ -61,15 +61,23 @@ if __name__ == "__main__":
                 stride=(1, 1),
                 padding=(0, 0),
             )
+            self.conv2 = nn.Conv2d(
+                in_channels=64,
+                out_channels=32,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=(0, 0),
+            )
 
-            self.fc1 = nn.Linear(64, num_classes)
+            self.fc1 = nn.Linear(32, num_classes)
 
         def forward(self, x):
             x = x.unsqueeze(0)
             x = x.unsqueeze(0)
             x = F.relu(self.conv1(x))
+            x = F.relu(self.conv2(x))
             x = x.view(x.size(0), -1)
-            x = self.fc1(x)
+            x = torch.sigmoid(self.fc1(x))
 
             return x
 
@@ -173,5 +181,6 @@ if __name__ == "__main__":
         print(
             f"Got {correct_test} / {total} with accuracy {float(correct_test)/float(total)*100:.2f}"
         )
+    run["testing/batch/acc"].log(test_epoch_acc)
     torch.save(model, model_path)
     run.stop()
