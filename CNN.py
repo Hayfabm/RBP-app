@@ -112,7 +112,7 @@ if __name__ == "__main__":
         print("epochs:", epoch)
         train_loss = 0.0
         correct_train = 0
-        total = len(dataset_train)
+        total_dataset = len(dataset_train)
         for i, (x_train, y_train) in enumerate(dataset_train, 1):
             # Get data to cuda if possible
             x_train = x_train.to(device=device)
@@ -134,8 +134,8 @@ if __name__ == "__main__":
             train_loss += loss.item()
             correct_train += predictions.eq(y_train).sum().item()
 
-            train_epoch_loss = train_loss / total
-            train_epoch_acc = 100 * (correct_train / total)
+            train_epoch_loss = train_loss / total_dataset
+            train_epoch_acc = 100 * (correct_train / total_dataset)
         print(
             "training_loss: {:.2f} | training_acc: {:.2f}".format(
                 train_epoch_loss, train_epoch_acc
@@ -149,11 +149,10 @@ if __name__ == "__main__":
     run["config/hyperparameters"] = params
 
     # check accuracy on training & test to see how good our model
-
+    model.eval()
     correct_test = 0
-    total = len(dataset_test)
+    total_dataset = len(dataset_test)
     print("evaluting trained model ...")
-    y_pred = []
     with torch.no_grad():
         for x_test, y_test in dataset_test:
             x_test = x_test.to(device=device)
@@ -163,8 +162,8 @@ if __name__ == "__main__":
             scores = model(x_test)
             loss = criterion(scores, y_test)
             _, predictions = scores.max(1)
-            correct_test += (predictions == y_test).item()
-            test_epoch_acc = 100 * (correct_test / total)
+            correct_test += (predictions == y_test).sum().item()
+            test_epoch_acc = 100 * (correct_test / total_dataset)
             """
             precision = precision_score(predictions, y_test)
             print("Precision: %f" % precision)
@@ -179,8 +178,9 @@ if __name__ == "__main__":
         print("accuracy: {:.2f}".format(test_epoch_acc))
 
         print(
-            f"Got {correct_test} / {total} with accuracy {float(correct_test)/float(total)*100:.2f}"
+            f"Got {correct_test} / {total_dataset} with accuracy {float(correct_test)/float(total_dataset)*100:.2f}"
         )
     run["testing/batch/acc"].log(test_epoch_acc)
     torch.save(model, model_path)
     run.stop()
+
