@@ -4,6 +4,8 @@ import re
 import math
 import pandas as pd
 import numpy as np
+import sys, platform
+
 
 # feature engineering: composition(C), transition(T), distribution(D), conjoint_triad(CT)
 
@@ -440,9 +442,11 @@ CT = CT_processing(sequence_list)
 conjoint_triad = np.array(CT)
 print(conjoint_triad.shape)  # (, 343)
 
+
 targets = pd.DataFrame(label_list)
 labels = np.array(targets)
-
+print(labels)
+"""
 # feature concatenation
 features = np.concatenate((ctdc, ctdt, ctdd, conjoint_triad), axis=1)
 print(features.shape)
@@ -458,4 +462,4 @@ np.save(dir_input + "labels", labels)  # 14725
 
 
 print("The preprocess of dataset has finished!")
-
+"""
