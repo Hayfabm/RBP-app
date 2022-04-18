@@ -1,11 +1,13 @@
+from pyexpat import model
 from typing import Dict, List, Optional
 
 import torch
 from deepchain.components import DeepChainApp
 import numpy as np
 import pandas as pd
-from torch import load
-
+from torch import load, nn
+import math
+import torch.nn.functional as F
 
 Score = Dict[str, float]
 ScoreList = List[Score]
@@ -106,8 +108,6 @@ def CTDC(seq, **kw):
 
 
 ## transition
-
-
 def CTDT(seq, **kw):
     group1 = {
         "hydrophobicity_PRAM900101": "RKEDQN",
@@ -417,10 +417,11 @@ class App(DeepChainApp):
         # NOTE: if you have issues at this step, please use h5py 2.10.0
         # by running the following command: pip install h5py==2.10.0
 
-        self._checkpoint_filename: Optional[str] = "model_20220404160001.hdf5"
-
+        self._checkpoint_filename: Optional[str] = "model_20220418140639.pt"
+        # load_model - load for pytorch model
+        self.model = CNN().to(device)
         if self._checkpoint_filename is not None:
-            state_dict = torch.load(self.get_checkpoint_path("__file__"))
+            state_dict = torch.load(self.get_checkpoint_path("~/RBP-app/"))
             self.model.load_state_dict(state_dict)
 
             self.model.eval()
@@ -432,44 +433,73 @@ class App(DeepChainApp):
     def compute_scores(self, sequences_list: List[str]) -> ScoreList:
         scores_list = []
 
-        for sequence in sequences_list:
-            composition = CTDC(sequence)
-            composition_CTD = pd.DataFrame(composition)
-            ctdc = np.array(composition_CTD)
-            print(ctdc.shape)
+        composition = CTDC(sequences_list)
+        composition_CTD = pd.DataFrame(composition)
+        ctdc = np.array(composition_CTD)
+        print(ctdc.shape)
 
-            transition = CTDT(sequence)
-            transition_CTD = pd.DataFrame(transition)
-            ctdt = np.array(transition_CTD)
-            print(ctdt.shape)
+        transition = CTDT(sequences_list)
+        transition_CTD = pd.DataFrame(transition)
+        ctdt = np.array(transition_CTD)
+        print(ctdt.shape)
 
-            distribution = CTDD(sequence)
-            distribution_CTD = pd.DataFrame(distribution)
-            ctdd = np.array(distribution_CTD)
-            print(ctdd.shape)
+        distribution = CTDD(sequences_list)
+        distribution_CTD = pd.DataFrame(distribution)
+        ctdd = np.array(distribution_CTD)
+        print(ctdd.shape)
 
-            CT = CT_processing(sequence)
-            conjoint_triad = np.array(CT)
-            print(conjoint_triad.shape)
+        CT = CT_processing(sequences_list)
+        conjoint_triad = np.array(CT)
+        print(conjoint_triad.shape)
 
-            sequence_encoded = np.concatenate(
-                (ctdc, ctdt, ctdd, conjoint_triad), axis=1
-            )
+        sequence_encoded = np.concatenate((ctdc, ctdt, ctdd, conjoint_triad), axis=1)
+        for seq in sequence_encoded:
+            seq = seq.reshape(1, seq.shape[0])
+
             # forward pass throught the model
-            binding_probabilities = self.model.predict(sequence_encoded)
+            binding_probabilities = self.model(torch.tensor(seq).float())
+            binding_probabilities = binding_probabilities.detach().cpu().numpy()
             scores_list.append({self.score_names()[0]: binding_probabilities[0][1]})
 
         return scores_list
 
 
+class CNN(nn.Module):
+    def __init__(self):
+        super(CNN, self).__init__()
+        self.conv1 = nn.Conv2d(
+            in_channels=1,
+            out_channels=64,
+            kernel_size=(1, 616),
+            stride=(1, 1),
+            padding=(0, 0),
+        )
+        self.conv2 = nn.Conv2d(
+            in_channels=64,
+            out_channels=32,
+            kernel_size=(1, 1),
+            stride=(1, 1),
+            padding=(0, 0),
+        )
+
+        self.fc1 = nn.Linear(32, 2)
+
+    def forward(self, x):
+        x = x.unsqueeze(0)
+        x = x.unsqueeze(0)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = x.view(x.size(0), -1)
+        x = torch.sigmoid(self.fc1(x))
+
+        return x
+
+
 if __name__ == "__main__":
 
     sequences = [
-        "MTREGQFREELGYDRMPTLERGRQDAGRQDPGSYTPDSKPKDLQLSKRLPPCFSYKTWVFSVLMGSC\
-    LLVTSGFSLYLGNVFPSEMDYLRCAAGSCIPSAIVSFAVGRRNVSAIPNFQILFVSTFAVTTTCLIWFGCKLILNPSAINI\
-    NFNLILLLLLELLMAATVIISARSSEEPCKKKKGSISDGSNILDEVTFPARVLKSYSVVEVIAGVSAVLGGVIALNVEEAV\
-    SGPHLSVTFFWILVACFPSAIASHVTAECPSKCLVEVLIAISSLTSPLLFTASGYLSFSVMRVVEIFKDYPPAIKSYDVLL\
-    LLLLLLLLLQGGLNTGTAIQCVSFKVSARLQAASWDPQSCPQERPAGEVVRGPLKEFDKEKAWRAVVVQMAQ"
+        "MTREGQFREELGYDRMPTLERGRQDAGRQDPGSYTPDSKPKDLQLSKRLPPCFSYKTWVFSVLMGSC",
+        "ERGRQDAGRQDPGSYTPDSKPKDLQLSKRLPPCF",
     ]
 
     app = App("cpu")
