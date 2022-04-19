@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import datetime
 import neptune.new as neptune
-
+import pickle
 
 # set the device we will be using to train the model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,6 +61,7 @@ if __name__ == "__main__":
                 stride=(1, 1),
                 padding=(0, 0),
             )
+            self.dropout = nn.Dropout(p=0.1)
             self.conv2 = nn.Conv2d(
                 in_channels=64,
                 out_channels=32,
@@ -75,6 +76,7 @@ if __name__ == "__main__":
             x = x.unsqueeze(0)
             x = x.unsqueeze(0)
             x = F.relu(self.conv1(x))
+            x = self.dropout(x)
             x = F.relu(self.conv2(x))
             x = x.view(x.size(0), -1)
             x = torch.sigmoid(self.fc1(x))
@@ -97,7 +99,7 @@ if __name__ == "__main__":
         "device": torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
     }
     model_path = (
-        "logs/model_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".hdf5"
+        "logs/model_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".pt"
     )
     # initialize network
     model = CNN().to(device)
@@ -117,8 +119,7 @@ if __name__ == "__main__":
             # Get data to cuda if possible
             x_train = x_train.to(device=device)
             y_train = y_train.to(device=device)
-            # x_train = x_train.reshape(x_train.shape[0], 1)
-            x_train = torch.reshape(x_train, (1, 616)).to(device)
+            x_train = x_train.reshape(1, x_train.shape[0]).to(device)  # (1,616)
             # forward
             scores = model(x_train)
             loss = criterion(scores, y_train)
@@ -157,8 +158,7 @@ if __name__ == "__main__":
         for x_test, y_test in dataset_test:
             x_test = x_test.to(device=device)
             y_test = y_test.to(device=device)
-            # x_test = x_test.reshape(x_test.shape[0], 1)
-            x_test = torch.reshape(x_test, (1, 616)).to(device)
+            x_test = x_test.reshape(1, x_test.shape[0])
             scores = model(x_test)
             loss = criterion(scores, y_test)
             _, predictions = scores.max(1)
@@ -181,6 +181,5 @@ if __name__ == "__main__":
             f"Got {correct_test} / {total_dataset} with accuracy {float(correct_test)/float(total_dataset)*100:.2f}"
         )
     run["testing/batch/acc"].log(test_epoch_acc)
-    torch.save(model, model_path)
+    torch.save(model.state_dict(), model_path)
     run.stop()
-
