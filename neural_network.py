@@ -1,7 +1,7 @@
 #!/home/user/miniconda3/envs/torch-gpu/bin/python
 import os
 import time
-
+import datetime
 import neptune.new as neptune
 import numpy as np
 import pandas as pd
@@ -56,24 +56,30 @@ if __name__ == "__main__":
         def __init__(self, input_size, num_classes):
             super(NN, self).__init__()
             self.fc1 = nn.Linear(input_size, 100)
-            self.fc2 = nn.Linear(100, num_classes)
+            self.fc2 = nn.Linear(100, 10)
+            self.fc3 = nn.Linear(10, num_classes)
             self.log_softmax = F.log_softmax
 
         def forward(self, x):
             x = x.view(-1, x.size(0))
             x = F.relu(self.fc1(x))
-            x = self.log_softmax(self.fc2(x), dim=1)
+            x = F.relu(self.fc2(x))
+            x = self.log_softmax(self.fc3(x), dim=1)
             return x
 
     # Hyperparameters
     input_size = 616
     num_classes = 2
-    learning_rate = 0.001
+    learning_rate = 0.0001
     batch_size = 64
-    num_epochs = 20
+    num_epochs = 10
+    model_path = (
+        "logs/model_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".pt"
+    )
 
     # initialize network
     model = NN(input_size=input_size, num_classes=num_classes).to(device)
+    print("model architecture:")
     print(model)
 
     # Loss and optimizer
@@ -81,13 +87,16 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # Train network
-
     for epoch in range(num_epochs):
+        # Print
         print("epochs:", epoch)
+
+        # Print
         train_loss = 0.0
         correct_train = 0
         total = len(dataset_train)
         for i, (x_train, y_train) in enumerate(dataset_train, 1):
+
             # Get data to cuda if possible
             x_train = x_train.to(device=device)
             y_train = y_train.to(device=device)
@@ -140,5 +149,5 @@ if __name__ == "__main__":
         print(
             f"Got {correct_test} / {total} with accuracy {float(correct_test)/float(total)*100:.2f}"
         )
-
+    torch.save(model, model_path)
     run.stop()
